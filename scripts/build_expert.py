@@ -28,7 +28,7 @@ def add_patents(domain, patents_dict):
     for pid, title in patents_dict.items():
         ALL_PATENTS[pid] = {"title": title, "domain": domain}
 
-# AI/ML domains (already have ~109)
+# AI/ML domains (seed set)
 add_patents("Computer Vision", {
     "CN111401156A":"基于Gabor卷积神经网络的图像识别方法","CN118537816A":"基于计算机视觉和机器学习的智能图像识别方法",
     "CN118115819B":"基于深度学习的图表图像数据识别方法及系统","CN119273998A":"基于深度学习的图像内容识别系统",
@@ -292,9 +292,11 @@ def parse_all():
 
     print(f"  Done: {i+1} patents parsed")
 
+    # Use total patent IDs collected (not just successfully parsed PDFs)
+    all_domains = set(p["domain"] for p in ALL_PATENTS.values())
     return {
-        "total_patents": i+1,
-        "domains": len(domain_stats),
+        "total_patents": len(ALL_PATENTS),  # all patent IDs across all domains
+        "domains": len(all_domains),
         "domain_stats": dict(domain_stats),
         "top_claim_openers": claims_structure.most_common(50),
         "top_dep_claim_patterns": dep_claim_structure.most_common(30),
