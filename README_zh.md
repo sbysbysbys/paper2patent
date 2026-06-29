@@ -1,87 +1,113 @@
-# 📄 paper2patent (论文转专利)
+# 📄 paper2patent
 
-**将学术论文（LaTeX / PDF）自动转换为中国发明专利 .docx 格式**
+**一键将学术论文（LaTeX / PDF）转成可直接提交的中国发明专利 .docx**
 
-[![Tests](https://github.com/paper2patent/paper2patent/actions/workflows/test.yml/badge.svg)](https://github.com/paper2patent/paper2patent/actions/workflows/test.yml)
+[![Tests](https://github.com/sbysbysbys/paper2patent/actions/workflows/test.yml/badge.svg)](https://github.com/sbysbysbys/paper2patent/actions/workflows/test.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 > 中文 | [English](README.md)
 
-## 功能介绍
+---
 
-输入一篇学术论文（PDF 或 LaTeX 源码），自动生成一份格式化的**中国发明专利** `.docx` 文件。包含：
+## 🎯 为什么选 paper2patent？
 
-- 自动生成的权利要求书（独立权利要求 + 从属权利要求）
-- 按 CNIPA 规范格式化的五书结构
-- 论文原图提取 + 程序化流程图/框图生成
-- 可选的参考专利格式学习
+市面上能把论文"翻译"成专利的工具屈指可数，而 paper2patent 不止是翻译——**它是目前最完整的论文→专利自动化流水线**。
 
-```
-输入: paper.pdf      →      输出: 专利说明书_xxx.docx
-                              ├── 说明书摘要
-                              ├── 权利要求书
-                              ├── 说明书
-                              │   ├── 【技术领域】
-                              │   ├── 【背景技术】
-                              │   ├── 【发明内容】
-                              │   ├── 【附图说明】
-                              │   └── 【具体实施方式】
-                              └── 说明书附图
-```
+### 🏆 四大核心优势
 
-## 9 步流水线
+| 优势 | 说明 |
+|------|------|
+| **📊 能生图** | 自动生成方法流程图 (graphviz)、系统架构框图 (matplotlib)、整体框架图 — 带专利引用号标注，直接可用 |
+| **🖼️ 能提取图** | 从 PDF 论文中提取嵌入位图 **和** 矢量图，智能裁剪 figure + caption，300 DPI 高保真输出，一键转黑白 |
+| **🧠 专家级撰写** | 内置 **Patent Writing Expert** — 分析 **300+** 篇真实中国发明专利提炼的知识库，覆盖 **21 个技术领域** |
+| **📐 格式即交付** | CNIPA 标准格式一步到位：A4/宋体/黑体/1.5倍行距/首行缩进/【】章节标题，打开就能提交 |
 
-| 步骤 | 功能 | 工具 | 产出 |
-|------|------|------|------|
-| 1. 解析 | 解析 LaTeX/PDF 输入 | `latex2json` / `PyMuPDF` + `pymupdf4llm` | `PaperIR` |
-| 2. 分析 | LLM 辅助提取方法步骤、系统组件、创新点 | Claude / OpenAI API | `PaperAnalysis` |
-| 3. 结构生成 | 论文章节 → 专利【】章节 | 规则+模板 | `PatentIR` sections |
-| 4. 权利要求 | 生成独立权利要求 + 从属权利要求 | 规则引擎 | Claims |
-| 5. 图片提取 | 从 PDF 提取+裁剪图片 | `PyMuPDF` | `figures/` |
-| 6. 图表生成 | 流程图( graphviz ) + 框图( matplotlib ) | graphviz + matplotlib | `diagrams/` |
-| 7. 样式配置 | 内置 CNIPA 默认 + 可选参考专利覆盖 | `python-docx` | `StyleProfile` |
-| 8. 格式化 | 组装输出 .docx | `python-docx` | `.docx` |
-| 9. 校验 | 权利要求、章节、交叉引用检查 | 规则引擎 | Report |
+### 🔬 300+ 专利知识库，21 领域全覆盖
 
-## 快速开始
+不仅懂 AI——我们的 Patent Expert 分析了以下全部领域的真实专利：
 
-### 安装
+| 计算机视觉 | NLP | 神经网络架构 | 强化学习 | 网络安全 | 多模态 |
+|:--:|:--:|:--:|:--:|:--:|:--:|
+| 时序预测 | 边缘计算 | 大语言模型 | Transformer | 药物发现 | **化学/催化** |
+| **生物/基因编辑** | **半导体/芯片** | **新能源/电池** | **机械/传动** | **医疗器械** | **5G/通信** |
+| **材料/涂层** | **工业机器人** | **环保/水处理** | | | |
+
+> 不会因为你做 CV 就只会写 CV 专利——跨领域通用撰写能力是 paper2patent 的核心壁垒。
+
+---
+
+## 🚀 一条命令，九步到位
 
 ```bash
-# 从源码安装
-git clone https://github.com/paper2patent/paper2patent.git
+paper2patent paper.pdf -o output/
+```
+
+```
+Input: paper.pdf  ──→  Output: 专利说明书_xxx.docx
+                           ├── 说明书摘要
+                           ├── 权利要求书
+                           │   ├── 独立权利要求（方法 + 装置 + 电子设备 + 存储介质）
+                           │   └── 从属权利要求（参数、变体、细化限定）
+                           ├── 说明书
+                           │   ├── 【技术领域】
+                           │   ├── 【背景技术】
+                           │   ├── 【发明内容】
+                           │   ├── 【附图说明】
+                           │   └── 【具体实施方式】
+                           ├── 说明书附图（原论文图 + 生成的流程图/框图）
+                           └── 校验报告
+```
+
+| Step | 做什么 | 怎么做的 |
+|:----:|--------|----------|
+| 1 | **解析输入** | LaTeX → `latex2json` / PDF → `PyMuPDF` + `pymupdf4llm`（扫描件 OCR 回退） |
+| 2 | **分析论文** | LLM 驱动的语义分析，提取方法步骤、系统组件、创新点、参数范围 |
+| 3 | **生成专利结构** | 论文 IMRD → 专利五书【】章节映射，背景技术只写局限性 |
+| 4 | **生成权利要求** | Expert 模板 + 规则引擎：独立（4类）+ 从属，自动避多引多 |
+| 5 | **提取论文原图** | PyMuPDF 位图+矢量图双提取，智能裁剪，300 DPI，可选黑白转换 |
+| 6 | **生成流程图/框图** | graphviz 方法流程图 + matplotlib 系统框图 + 框架图，全带引用号 |
+| 7 | **样式配置** | 内置 CNIPA 默认 + 可选 `-r 参考专利.docx` 自动学习样式 |
+| 8 | **格式化输出** | python-docx 精确控制：页边距、字体、行距、缩进、分页 |
+| 9 | **自动校验** | 单句检查、多引多检查、禁用词检测、摘要字数、交叉引用 |
+
+---
+
+## 📦 安装
+
+```bash
+git clone https://github.com/sbysbysbys/paper2patent.git
 cd paper2patent
 pip install -e .
 
-# 系统依赖
+# 系统依赖（流程图生成）
 brew install graphviz        # macOS
 sudo apt install graphviz    # Linux
 ```
 
-### 命令行
+## 🖥️ 使用
 
 ```bash
-# 基本转换
+# 基础转换
 paper2patent paper.pdf -o output/
 
-# 从 LaTeX 项目
+# LaTeX 项目
 paper2patent latex_project/ -o output/
 
-# 仅生成中间文件（不写 docx）
-paper2patent paper.pdf --dry-run
+# 附图全部转黑白（CNIPA 要求）
+paper2patent paper.pdf --bw-figures
 
-# 使用参考专利提取样式
+# 先看格式预览再转
+paper2patent paper.pdf --show-format
+
+# 参考已有专利的样式
 paper2patent paper.pdf -r 模板专利.docx
 
-# 跳过图表生成
-paper2patent paper.pdf --no-diagrams
-
-# 详细日志
-paper2patent paper.pdf -v
+# 预览中间产物，不生成 docx
+paper2patent paper.pdf --dry-run
 ```
 
-### Python API
+Python API：
 
 ```python
 from paper2patent.pipeline import PaperToPatentPipeline
@@ -89,97 +115,114 @@ from paper2patent.pipeline import PaperToPatentPipeline
 pipeline = PaperToPatentPipeline(
     output_dir="./output/",
     patent_type="cn",
-    reference_docx="模板.docx",  # 可选
+    reference_docx="模板.docx",  # 可选：学习已有专利样式
+    bw_figures=True,             # 黑白图
     verbose=True,
 )
 output = pipeline.run("paper.pdf")
-print(f"专利保存到: {output}")
 ```
 
-### Claude Code Skill
+Claude Code Skill：
 
 ```bash
-# 复制到 Claude Code skills 目录
 cp SKILL.md ~/.claude/skills/paper2patent/SKILL.md
-
-# 在 Claude Code 中调用:
-# "/paper2patent paper.pdf"
+# 然后在 Claude Code 中直接 /paper2patent paper.pdf
 ```
 
-## 功能特性
+---
 
-- ✅ **PDF 输入** — 支持文本型 + 扫描件（OCR 需 PaddleOCR）
-- ✅ **LaTeX 输入** — 完整项目文件夹，自动解析 `\input`/`\include`
-- ✅ **权利要求生成** — 独立权利要求（方法+装置）+ 从属权利要求（参数、变体）
-- ✅ **图片提取** — 嵌入式位图 + 矢量图，智能裁剪
-- ✅ **流程图生成** — graphviz 方法流程图，带引用号标注
-- ✅ **框图生成** — matplotlib 系统架构框图
-- ✅ **CNIPA 格式** — 页边距、字体、行距、章节标题均符合规范
-- ✅ **参考专利学习** — 从现有 .docx 专利提取样式
-- ✅ **自动校验** — 权利要求单句检查、多引多检查、交叉引用检查
-- ✅ **Dry-run 模式** — 预览中间 JSON/markdown 再决定是否生成 docx
+## 🧠 Patent Writing Expert
 
-## 输出目录结构
+paper2patent 不只是模板填充。它内置了一个**专利撰写专家系统**，知识来源于对 300+ 件真实中国发明专利（覆盖 21 个技术领域）的系统分析。
+
+**Expert 自动渗透到流水线每个环节：**
+
+- **分析阶段** → LLM 先读 Expert 的六大撰写原则，再分析论文
+- **权利要求** → 用专家模板生成，自动过滤"等等/约/最好是"等禁用词
+- **说明书章节** → 技术领域、摘要、结语均使用真实专利高频惯用句式
+- **校验阶段** → 按 Expert checklist 逐项检查（单句/多引多/术语一致/交叉引用）
+
+**Expert API 可独立调用：**
+
+```python
+from paper2patent.converter.expert_mode import (
+    get_claim_template,        # 获取权利要求模板
+    get_section_guide,         # 获取章节结构指南
+    get_writing_checklist,     # 获取撰写检查清单
+    EXPERT_SYSTEM_PROMPT,      # 获取专家系统 Prompt（可直接喂 LLM）
+)
+```
+
+---
+
+## 🎨 图表能力详解
+
+### 论文原图提取
+
+```
+PDF 论文 ──→ PyMuPDF 双通道提取 ──→ 智能裁剪 ──→ 统一编号 fig1.png ...
+              ├── 嵌入位图：原始分辨率无损提取
+              └── 矢量图 cluster_drawings()：300 DPI 高保真渲染
+              └── Caption 自动匹配（Fig/Figure/图 关键词检测）
+              └── 可选：灰度化 + 对比度 1.4x → 专利级黑白线图
+```
+
+### 程序化图表生成
+
+- **方法流程图** (graphviz)：从方法步骤自动生成，菱形判断节点 + 引用号 `(110)(120)...`
+- **系统架构框图** (matplotlib)：FancyBboxPatch 组件块 + FancyArrowPatch 连接线 + 引用号标注
+- **整体框架图**：Input → Processing → Output 三层结构，自动推断数据流
+
+---
+
+## ✅ 输出校验
+
+转换完成自动生成校验报告，逐项检查：
+
+- [x] 权利要求是否单句（仅句末一个 。）
+- [x] 是否包含 `其特征在于` 分隔
+- [x] 是否避免多引多
+- [x] 摘要是否 < 300 字
+- [x] 五个必选章节是否齐全
+- [x] 附图引用号是否在说明书中全部出现
+- [x] 是否包含禁用词（等等/约/最好是…）
+- [x] 术语是否前后一致
+
+---
+
+## 📂 输出目录
 
 ```
 patent_output/
-├── 专利_title.docx           # 最终格式化的专利文件
-├── intermediate/
-│   ├── paper_ir.json         # 解析后的论文结构
-│   ├── paper_analysis.json   # LLM 分析结果
-│   ├── patent_structure.md   # 专利章节草稿
-│   ├── claims.md             # 权利要求草稿
-│   └── validation_report.txt # 校验报告
-├── figures/
-│   ├── fig1.png              # 提取的论文原图
+├── 专利_title.docx              # 最终格式化的专利文件
+├── 专利格式预览.docx             # （--show-format）格式说明文档
+├── intermediate/                 # 每一步中间产物，可手动调整
+│   ├── paper_ir.json
+│   ├── paper_analysis.json
+│   ├── patent_structure.md
+│   ├── claims.md
+│   └── validation_report.txt
+├── figures/                      # 论文原图
+│   ├── fig1.png
 │   └── fig2.png
-└── diagrams/
-    ├── flow_method.pdf       # 方法流程图
-    ├── block_system.pdf      # 系统结构框图
-    └── framework.pdf         # 整体框架图
+└── diagrams/                     # 程序化生成的图
+    ├── flow_method.pdf           # 方法流程图
+    ├── block_system.pdf          # 系统架构框图
+    └── framework.pdf             # 整体框架图
 ```
 
-## 依赖
+---
 
-| 类别 | 包 | 用途 |
-|------|-----|------|
-| **核心** | `python-docx`, `click`, `pydantic` | .docx 写入、CLI、数据模型 |
-| **PDF** | `PyMuPDF`, `pymupdf4llm` | PDF 解析、图片提取 |
-| **LaTeX** | `latex2json`, `pylatexenc` | LaTeX → 结构化 JSON、公式转文本 |
-| **图表** | `graphviz`, `matplotlib`, `Pillow` | 流程图、框图、图片处理 |
-| **UI** | `rich` | 终端美化输出 |
-| **可选** | `paddleocr` (OCR), `docling` (语义PDF), `anthropic`/`openai` (LLM) | |
-
-## 中国专利格式规范
-
-本工具遵循以下 CNIPA 格式要求：
-
-| 规范项 | 设置 |
-|--------|------|
-| 纸张 | A4 (210mm × 297mm) |
-| 页边距 | 上 25mm、下 15mm、左 25mm、右 15mm |
-| 正文字体 | 宋体 12pt |
-| 标题字体 | 黑体 14pt 加粗 |
-| 行距 | 1.5 倍 |
-| 首行缩进 | 2 字符 |
-| 章节标题 | 【技术领域】【背景技术】【发明内容】【附图说明】【具体实施方式】 |
-| 摘要字数 | ≤ 300 字 |
-| 权利要求 | 每项单句（仅句末一个。） |
-| 引用规则 | 禁止多引多 |
-
-## 路线图
+## 🗺️ 路线图
 
 - [ ] 美国专利 (USPTO) 格式支持
 - [ ] LaTeX 专利模板输出
 - [ ] 交互式权利要求编辑器
 - [ ] 多语言专利翻译
-- [ ] 更多参考专利样式自动检测
 - [ ] Web 界面
 
-## 许可证
+---
+
+## 📜 许可证
 
 MIT — 详见 [LICENSE](LICENSE)。
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
