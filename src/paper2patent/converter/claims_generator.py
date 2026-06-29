@@ -110,15 +110,16 @@ class ClaimsGenerator:
         self, num: int, paper_ir: PaperIR, analysis: PaperAnalysis
     ) -> PatentClaim:
         subject = self._subject(paper_ir, "方法")
-        lines = [f"一种{subject}方法，其特征在于，包括："]
+        lines = [f"一种{subject}，其特征在于，包括："]
 
-        for step in analysis.method_steps:
+        for i, step in enumerate(analysis.method_steps):
             ref = step.reference_num
-            desc = step.description.rstrip("；。")
-            lines.append(f"步骤S{ref}：{desc}；")
+            desc = step.description.rstrip("；。，")
+            sep = "。" if i == len(analysis.method_steps) - 1 else "；"
+            lines.append(f"步骤S{ref}：{desc}{sep}")
 
-        # Join without extra newlines — claims are single sentences in CN
-        text = "\n".join(lines) + "\n。"
+        # Only final step gets full stop — CN single-sentence rule
+        text = "\n".join(lines)
 
         return PatentClaim(
             number=num,
@@ -132,11 +133,12 @@ class ClaimsGenerator:
         self, num: int, paper_ir: PaperIR, analysis: PaperAnalysis
     ) -> PatentClaim:
         subject = self._subject(paper_ir, "装置")
-        lines = [f"一种{subject}装置，其特征在于，包括："]
+        lines = [f"一种{subject}，其特征在于，包括："]
 
-        for comp in analysis.system_components:
+        for i, comp in enumerate(analysis.system_components):
             ref = comp.reference_num
-            lines.append(f"{comp.name}({ref})，用于{comp.function}；")
+            sep = "。" if i == len(analysis.system_components) - 1 else "；"
+            lines.append(f"{comp.name}({ref})，用于{comp.function}{sep}")
 
         text = "\n".join(lines)
 
@@ -183,12 +185,21 @@ class ClaimsGenerator:
 
     def _subject(self, paper_ir: PaperIR, suffix: str) -> str:
         """Extract a clean subject name from the paper title."""
+        import re
         title = paper_ir.title or ""
+        # Strip markdown formatting (**, __, etc.)
+        title = re.sub(r'\*{1,3}|_{1,3}|`{1,3}', '', title)
         # Remove common prefixes
         for prefix in ["一种", "基于", "用于"]:
             if title.startswith(prefix):
                 title = title[len(prefix):]
-        # Use first meaningful noun phrase
-        if len(title) > 30:
-            title = title[:30]
+        # Remove subtitle after colon
+        title = title.split(":")[0].strip()
+        # Strip existing patent suffixes to avoid doubling
+        for existing in ["的方法和装置", "的方法", "的装置", "的系统", "方法", "装置", "系统"]:
+            if title.endswith(existing):
+                title = title[:-len(existing)].strip()
+        # Limit length
+        if len(title) > 40:
+            title = title[:40]
         return title + suffix if title else suffix

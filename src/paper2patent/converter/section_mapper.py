@@ -51,10 +51,11 @@ class SectionMapper:
 
     def _make_patent_title(self, paper_title: str, analysis: PaperAnalysis) -> str:
         """Convert paper title to patent title format."""
-        # Clean LaTeX/formatting artifacts
-        title = paper_title.strip()
+        import re
+        # Clean LaTeX/markdown formatting artifacts
+        title = re.sub(r'\*{1,3}|_{1,3}|`{1,3}', '', paper_title.strip())
         # Remove colons and subtitles (patent titles are simpler)
-        title = title.split(":")[0]
+        title = title.split(":")[0].strip()
 
         # Make it patent-like if not already
         if "方法" not in title and "装置" not in title and "系统" not in title:

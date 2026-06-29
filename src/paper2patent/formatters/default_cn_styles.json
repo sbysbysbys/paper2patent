@@ -9,7 +9,7 @@
   },
   "body_font": {
     "family": "宋体",
-    "size_pt": 12,
+    "size_pt": 14,
     "color": "000000"
   },
   "heading_font": {
@@ -19,17 +19,17 @@
   },
   "title_font": {
     "family": "黑体",
-    "size_pt": 16,
+    "size_pt": 14,
     "bold": true
   },
   "abstract": {
     "font_family": "宋体",
-    "font_size_pt": 12,
+    "font_size_pt": 14,
     "max_chars": 300
   },
   "claims": {
     "font_family": "宋体",
-    "font_size_pt": 12,
+    "font_size_pt": 14,
     "number_prefix": "",
     "number_suffix": "."
   },

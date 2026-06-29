@@ -52,8 +52,14 @@ class PaperToPatentPipeline:
         self.patent_ir: Optional[PatentIR] = None
         self.style_profile: Optional[StyleProfile] = None
 
-    def run(self, input_path: str) -> Path:
-        """Execute the full pipeline and return the output path."""
+    def run(self, input_path: str, paper_analysis: Optional[PaperAnalysis] = None) -> Path:
+        """Execute the full pipeline and return the output path.
+
+        Args:
+            input_path: Path to paper (.pdf or .tex)
+            paper_analysis: Pre-computed analysis (skips Step 2 LLM call).
+                           When None, attempts LLM with rules fallback.
+        """
         input_path = os.path.abspath(input_path)
         self._setup_dirs()
 
@@ -69,7 +75,7 @@ class PaperToPatentPipeline:
 
         # --- Format preview (if --show-format) ---
         if self.show_format:
-            self._step7_style_profile()  # build style profile first
+            self.style_profile = self._step7_style_profile()  # build + store
             fmt_path = self._generate_format_preview()
             console.print(f"[green]✓[/green] Format preview saved to: [cyan]{fmt_path}[/cyan]")
             console.print()
@@ -86,22 +92,23 @@ class PaperToPatentPipeline:
             self._save_intermediate("paper_ir.json", self.paper_ir.model_dump())
             self._log("[green]✓[/green] Step 1: Input parsed → PaperIR")
 
-            # Step 2: Analyze paper → PaperAnalysis
-            progress.add_task("[2/9] Analyzing paper content...", total=None)
-            self.paper_analysis = self._step2_analyze()
-            self._save_intermediate("paper_analysis.json", self.paper_analysis.model_dump())
-            self._log("[green]✓[/green] Step 2: Paper analyzed → PaperAnalysis")
-
-            # Step 3: Generate patent structure → PatentIR (sections)
-            progress.add_task("[3/9] Generating patent structure...", total=None)
-            self.patent_ir = self._step3_structure()
-            self._log("[green]✓[/green] Step 3: Patent structure generated")
-
-            # Step 4: Generate claims
-            progress.add_task("[4/9] Generating claims...", total=None)
-            self._step4_claims()
-            self._save_intermediate("claims.md", self._claims_to_markdown())
-            self._log("[green]✓[/green] Step 4: Claims generated")
+            # Step 2-4: LLM generates ALL patent content (analysis + structure + claims)
+            progress.add_task("[2/9] LLM generating patent content...", total=None)
+            if paper_analysis is not None:
+                # Old path: use pre-computed analysis with rules-based generators
+                self.paper_analysis = paper_analysis
+                self._log("[green]✓[/green] Step 2: Using provided PaperAnalysis")
+                self.patent_ir = self._step3_structure()
+                self._log("[green]✓[/green] Step 3: Patent structure generated")
+                self._step4_claims()
+                self._save_intermediate("claims.md", self._claims_to_markdown())
+                self._log("[green]✓[/green] Step 4: Claims generated")
+            else:
+                # New path: LLM generates everything in one call
+                self.patent_ir = self._step2_llm_generate()
+                self._save_intermediate("patent_from_llm.json", self.patent_ir.model_dump())
+                self._save_intermediate("claims.md", self._claims_to_markdown())
+                self._log("[green]✓[/green] Step 2: LLM generated full patent content")
 
             # Step 5: Extract & process figures
             if self.extract_figures:
@@ -196,7 +203,18 @@ class PaperToPatentPipeline:
             raise ValueError(f"Unsupported input: {input_path}")
 
     # ------------------------------------------------------------------
-    # Step 2
+    # Step 2 (new): LLM generates full patent content
+    # ------------------------------------------------------------------
+
+    def _step2_llm_generate(self):
+        """Use LLM to generate complete PatentIR in one call."""
+        from paper2patent.converter.llm_generator import LLMGenerator
+
+        generator = LLMGenerator(backend=self.llm_backend, verbose=self.verbose)
+        return generator.generate(self.paper_ir)
+
+    # ------------------------------------------------------------------
+    # Step 2 (old): LLM-assisted paper analysis only
     # ------------------------------------------------------------------
 
     def _step2_analyze(self) -> PaperAnalysis:

@@ -15,11 +15,13 @@ class PatentValidator:
         self.patent_type = patent_type
         self.issues: list[str] = []
         self.warnings: list[str] = []
+        self.infos: list[str] = []
 
     def validate(self, patent: PatentIR) -> str:
         """Run all validations and return a report string."""
         self.issues = []
         self.warnings = []
+        self.infos = []
 
         self._check_claims_single_sentence(patent.claims)
         self._check_claims_multi_dependency(patent.claims)
@@ -53,13 +55,13 @@ class PatentValidator:
                 )
 
             # For CN claims, internal semicolons (；) are also problematic
-            # But claim elements are separated by ； in practice... this is a relaxed check
-            # Strict interpretation says only 、and ，are allowed
-            # We warn rather than error
+            # Real CN patents use ；between claim elements — standard practice.
+            # Strict interpretation says only 、and ，are allowed, but actual practice differs.
+            # Only flag as info for awareness.
             if internal_semicolons > 0 and self.patent_type == "cn":
-                self.warnings.append(
+                self.infos.append(
                     f"权利要求{claim.number}：包含{internal_semicolons}个分号（；）。"
-                    f"在严格解释下，CN权利要求内部只允许逗号和枚举逗号。"
+                    f"实际专利撰写中普遍使用，不影响提交。"
                 )
 
     def _check_claims_multi_dependency(self, claims: list[PatentClaim]) -> None:
@@ -175,7 +177,7 @@ class PatentValidator:
         lines.append("=" * 50)
         lines.append("")
 
-        if not self.issues and not self.warnings:
+        if not self.issues and not self.warnings and not self.infos:
             lines.append("✓ 校验通过，未发现问题。")
         else:
             if self.issues:
@@ -190,6 +192,13 @@ class PatentValidator:
                 lines.append("")
                 for i, warning in enumerate(self.warnings, 1):
                     lines.append(f"  [{i}] {warning}")
+                lines.append("")
+
+            if self.infos:
+                lines.append(f"## 提示 ({len(self.infos)}项) — 仅供参考")
+                lines.append("")
+                for i, info in enumerate(self.infos, 1):
+                    lines.append(f"  [{i}] {info}")
                 lines.append("")
 
         lines.append("=" * 50)

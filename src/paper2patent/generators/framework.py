@@ -7,6 +7,33 @@ from pathlib import Path
 from paper2patent.ir import PaperIR, PaperAnalysis
 
 
+def _setup_cjk_font():
+    """Configure matplotlib for CJK (Chinese) font rendering."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.font_manager as fm
+
+    # Try common CJK fonts on different platforms
+    cjk_fonts = [
+        "PingFang SC", "Heiti SC", "STHeiti", "Songti SC",  # macOS
+        "Noto Sans CJK SC", "WenQuanYi Micro Hei", "WenQuanYi Zen Hei",  # Linux
+        "SimHei", "Microsoft YaHei", "SimSun",  # Windows
+    ]
+    available = {f.name for f in fm.fontManager.ttflist}
+    for font in cjk_fonts:
+        if font in available:
+            # Prepend to sans-serif list so CJK glyphs render correctly
+            sans_list = list(plt.rcParams.get("font.sans-serif", []))
+            if font not in sans_list:
+                sans_list.insert(0, font)
+            plt.rcParams["font.sans-serif"] = sans_list
+            plt.rcParams["font.family"] = "sans-serif"
+            plt.rcParams["axes.unicode_minus"] = False
+            return font
+    return None
+
+
 class FrameworkGenerator:
     """Generate a high-level framework overview diagram.
 
@@ -113,6 +140,7 @@ class FrameworkGenerator:
         try:
             import matplotlib
             matplotlib.use("Agg")
+            _setup_cjk_font()
             import matplotlib.pyplot as plt
             from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
         except ImportError:

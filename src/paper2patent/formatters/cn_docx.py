@@ -84,14 +84,13 @@ class CNDocxWriter:
     # ------------------------------------------------------------------
 
     def _write_abstract(self, doc: Document, patent: PatentIR) -> None:
-        """Write 说明书摘要."""
-        # Title
-        title_para = doc.add_paragraph()
-        title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        title_run = title_para.add_run("说明书摘要")
-        title_run.bold = True
-        title_run.font.size = Pt(self.style.heading_font_size_pt)
-        title_run.font.name = self.style.heading_font_family
+        """Write 说明书摘要 — matching reference patent style."""
+        # "摘要" label — bold, no 【】
+        label_para = doc.add_paragraph()
+        label_run = label_para.add_run("摘要")
+        label_run.bold = True
+        label_run.font.size = Pt(self.style.heading_font_size_pt)
+        label_run.font.name = self.style.heading_font_family
 
         doc.add_paragraph("")  # blank line
 
@@ -126,7 +125,7 @@ class CNDocxWriter:
         """Write 权利要求书."""
         title_para = doc.add_paragraph()
         title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        title_run = title_para.add_run("权利要求书")
+        title_run = title_para.add_run("权利要求")
         title_run.bold = True
         title_run.font.size = Pt(self.style.heading_font_size_pt)
         title_run.font.name = self.style.heading_font_family
@@ -156,13 +155,21 @@ class CNDocxWriter:
     # ------------------------------------------------------------------
 
     def _write_title(self, doc: Document, patent: PatentIR) -> None:
-        """Write invention title, centered at top of 说明书."""
+        """Write invention title with '发明名称' label (reference patent style)."""
+        # "发明名称" label
+        label_para = doc.add_paragraph()
+        label_run = label_para.add_run("发明名称")
+        label_run.bold = True
+        label_run.font.size = Pt(self.style.heading_font_size_pt)
+        label_run.font.name = self.style.heading_font_family
+
+        doc.add_paragraph("")
+
+        # Actual title
         title_para = doc.add_paragraph()
-        title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         title_run = title_para.add_run(patent.title or "(发明名称)")
-        title_run.bold = True
-        title_run.font.size = Pt(16)
-        title_run.font.name = self.style.heading_font_family
+        title_run.font.size = Pt(self.style.body_font_size_pt)
+        title_run.font.name = self.style.body_font_family
 
         doc.add_paragraph("")  # blank line after title
 
@@ -177,9 +184,11 @@ class CNDocxWriter:
             self._write_section_content(doc, section.content)
 
     def _write_section_heading(self, doc: Document, heading: str) -> None:
-        """Write a 【section heading】 in bold."""
+        """Write a section heading — strips 【】 if present, writes as bold label."""
+        # Strip 【】 brackets for cleaner format (matching reference patent style)
+        clean = heading.strip("【】")
         para = doc.add_paragraph()
-        run = para.add_run(heading)
+        run = para.add_run(clean)
         run.bold = True if self.style.heading_bold else False
         run.font.size = Pt(self.style.heading_font_size_pt)
         run.font.name = self.style.heading_font_family

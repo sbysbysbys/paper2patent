@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from paper2patent.ir import PaperAnalysis
+from paper2patent.generators.framework import _setup_cjk_font
 
 
 class BlockDiagramGenerator:
@@ -25,6 +26,7 @@ class BlockDiagramGenerator:
         try:
             import matplotlib
             matplotlib.use("Agg")
+            _setup_cjk_font()
             import matplotlib.pyplot as plt
             from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
         except ImportError:
