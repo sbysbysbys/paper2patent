@@ -92,31 +92,19 @@ class PaperToPatentPipeline:
             self._save_intermediate("paper_ir.json", self.paper_ir.model_dump())
             self._log("[green]✓[/green] Step 1: Input parsed → PaperIR")
 
-            # Step 2-4: LLM generates ALL patent content (analysis + structure + claims)
+            # Step 2: LLM generates ALL patent text content
+            # All paths go through LLM — no rules-based text generation
             progress.add_task("[2/9] LLM generating patent content...", total=None)
-            if paper_analysis is not None:
-                # Old path: use pre-computed analysis with rules-based generators
-                self.paper_analysis = paper_analysis
-                self._log("[green]✓[/green] Step 2: Using provided PaperAnalysis")
-                self.patent_ir = self._step3_structure()
-                self._log("[green]✓[/green] Step 3: Patent structure generated")
-                self._step4_claims()
-                self._save_intermediate("claims.md", self._claims_to_markdown())
-                self._log("[green]✓[/green] Step 4: Claims generated")
-            else:
-                # New path: LLM generates everything. Requires API key.
-                # No rules fallback — LLM is the only content source.
-                try:
-                    self.patent_ir, self.paper_analysis = self._step2_llm_generate()
-                except Exception as e:
-                    console.print(f"\n[bold red]LLM generation failed: {e}[/bold red]")
-                    console.print("[yellow]All text content requires LLM. Set ANTHROPIC_API_KEY or OPENAI_API_KEY.[/yellow]")
-                    console.print("[yellow]Or use Python API with paper_analysis parameter.[/yellow]")
-                    raise SystemExit(1) from e
-                self._save_intermediate("patent_from_llm.json", self.patent_ir.model_dump())
-                if self.paper_analysis:
-                    self._save_intermediate("paper_analysis.json", self.paper_analysis.model_dump())
-                self._save_intermediate("claims.md", self._claims_to_markdown())
+            try:
+                self.patent_ir, self.paper_analysis = self._step2_llm_generate(paper_analysis)
+            except Exception as e:
+                console.print(f"\n[bold red]LLM generation failed: {e}[/bold red]")
+                console.print("[yellow]Set ANTHROPIC_API_KEY or OPENAI_API_KEY.[/yellow]")
+                raise SystemExit(1) from e
+            self._save_intermediate("patent_from_llm.json", self.patent_ir.model_dump())
+            if self.paper_analysis:
+                self._save_intermediate("paper_analysis.json", self.paper_analysis.model_dump())
+            self._save_intermediate("claims.md", self._claims_to_markdown())
                 self._log("[green]✓[/green] Step 2: LLM generated full patent content")
 
             # Step 5: Extract & process figures
@@ -215,14 +203,15 @@ class PaperToPatentPipeline:
     # Step 2 (new): LLM generates full patent content
     # ------------------------------------------------------------------
 
-    def _step2_llm_generate(self):
+    def _step2_llm_generate(self, paper_analysis: Optional[PaperAnalysis] = None):
         """Use LLM to generate complete PatentIR in one call.
+        If paper_analysis is provided, it's passed to LLM for higher quality.
         Returns (PatentIR, PaperAnalysis) tuple.
         """
         from paper2patent.converter.llm_generator import LLMGenerator
 
         generator = LLMGenerator(backend=self.llm_backend, verbose=self.verbose)
-        return generator.generate(self.paper_ir)
+        return generator.generate(self.paper_ir, paper_analysis)
 
     # ------------------------------------------------------------------
     # Step 2 (old): LLM-assisted paper analysis only

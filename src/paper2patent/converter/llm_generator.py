@@ -94,18 +94,21 @@ class LLMGenerator:
         self.backend = backend
         self.verbose = verbose
 
-    def generate(self, paper_ir: PaperIR) -> tuple[PatentIR, Optional[PaperAnalysis]]:
+    def generate(self, paper_ir: PaperIR, paper_analysis: Optional[PaperAnalysis] = None) -> tuple[PatentIR, Optional[PaperAnalysis]]:
         """Generate complete patent from paper content.
 
-        Returns (PatentIR, PaperAnalysis) — PaperAnalysis needed by diagram generators.
-        Uses LLM for content generation, with rules-based fallback.
-        """
-        paper_text = self._build_paper_text(paper_ir)
+        Args:
+            paper_ir: Parsed paper
+            paper_analysis: Optional structured analysis — if provided, LLM uses it
+                           to generate higher-quality patent text
 
-        # LLM is the ONLY source of text content — no rules fallback
+        Returns (PatentIR, PaperAnalysis). All text is LLM-generated.
+        """
+        paper_text = self._build_paper_text(paper_ir, paper_analysis)
+
         result_json = self._call_llm(paper_text)
         patent_ir = self._parse_patent(result_json, paper_ir)
-        analysis = self._extract_analysis_from_patent(patent_ir, paper_ir)
+        analysis = paper_analysis or self._extract_analysis_from_patent(patent_ir, paper_ir)
         if self.verbose:
             print(f"[green]LLM generated: {len(patent_ir.claims)} claims, "
                   f"{len(patent_ir.sections)} sections, "
@@ -116,8 +119,8 @@ class LLMGenerator:
     # Paper text builder
     # ══════════════════════════════════════════════════════════
 
-    def _build_paper_text(self, paper_ir: PaperIR) -> str:
-        """Build comprehensive paper text for the LLM prompt."""
+    def _build_paper_text(self, paper_ir: PaperIR, paper_analysis: Optional[PaperAnalysis] = None) -> str:
+        """Build comprehensive paper text for the LLM prompt, including analysis if available."""
         parts = []
 
         if paper_ir.title:
@@ -126,12 +129,27 @@ class LLMGenerator:
         if paper_ir.abstract:
             parts.append(f"## 摘要\n{paper_ir.abstract}")
 
+        # Include pre-computed analysis if available (higher quality guidance)
+        if paper_analysis:
+            parts.append("\n## 预分析（方法步骤）")
+            for s in paper_analysis.method_steps:
+                parts.append(f"- 步骤{s.index}: {s.description}")
+            parts.append("\n## 预分析（系统组件）")
+            for c in paper_analysis.system_components:
+                parts.append(f"- {c.name}: {c.function}")
+            parts.append("\n## 预分析（创新点）")
+            for n in paper_analysis.novelty_points:
+                parts.append(f"- {n.description}")
+            if paper_analysis.alternatives:
+                parts.append("\n## 预分析（可选变体）")
+                for a in paper_analysis.alternatives:
+                    parts.append(f"- {a}")
+
         # Sections with content
         for sec in paper_ir.sections:
             if sec.heading:
                 parts.append(f"## {sec.heading}")
             if sec.content:
-                # Include full content (no truncation for LLM)
                 parts.append(sec.content)
 
         # Equations
