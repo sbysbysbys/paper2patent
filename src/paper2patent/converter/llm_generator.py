@@ -22,10 +22,19 @@ from paper2patent.converter.expert_mode import EXPERT_SYSTEM_PROMPT
 
 FULL_PATENT_PROMPT = """你是资深中国专利代理人。请根据以下论文内容，撰写一份完整的中国发明专利。
 
+## ⚠️ 最重要：专利标题
+
+标题必须是专业的中文专利标题，格式为"一种[中文技术描述]的方法和装置"。
+- **严禁使用论文中的英文缩写或模型名**（如"WoRA-VLA""GPT""BERT"等）直接作为标题
+- 必须将论文的技术方案翻译为中文描述。例如：
+  - 论文"WoRA-VLA: World-model Integrated VLA" → 标题应为"一种基于世界模型集成的视觉语言动作模型训练方法及装置"
+  - 论文"GPT-4: Language Model" → 标题应为"一种基于大规模预训练的语言生成方法及装置"
+  - 一定要有中文含义，不能是字母缩写堆砌
+
 ## 撰写要求
 
 ### 格式规范
-- 正文使用"本申请"或"本技术"指代发明，严禁使用"本发明"
+- 正文使用"本申请"或"本技术"指代发明，**严禁使用"本发明"**
 - 权利要求每项一个自然段，编号从1开始
 - 说明书五个必选部分：【技术领域】【背景技术】【发明内容】【附图说明】【具体实施方式】
 - 附图说明格式："图X是本申请实施例提供的...示意图"
@@ -85,26 +94,23 @@ class LLMGenerator:
         self.backend = backend
         self.verbose = verbose
 
-    def generate(self, paper_ir: PaperIR) -> PatentIR:
+    def generate(self, paper_ir: PaperIR) -> tuple[PatentIR, Optional[PaperAnalysis]]:
         """Generate complete patent from paper content.
 
+        Returns (PatentIR, PaperAnalysis) — PaperAnalysis needed by diagram generators.
         Uses LLM for content generation, with rules-based fallback.
         """
         paper_text = self._build_paper_text(paper_ir)
 
-        # Try LLM
-        try:
-            result_json = self._call_llm(paper_text)
-            patent_ir = self._parse_patent(result_json, paper_ir)
-            if self.verbose:
-                print(f"[green]LLM generated: {len(patent_ir.claims)} claims, "
-                      f"{len(patent_ir.sections)} sections, "
-                      f"{sum(len(s.content) for s in patent_ir.sections)} chars total[/green]")
-            return patent_ir
-        except Exception as e:
-            if self.verbose:
-                print(f"[yellow]LLM generation failed ({e}), using expert rules[/yellow]")
-            return self._fallback_generate(paper_ir)
+        # LLM is the ONLY source of text content — no rules fallback
+        result_json = self._call_llm(paper_text)
+        patent_ir = self._parse_patent(result_json, paper_ir)
+        analysis = self._extract_analysis_from_patent(patent_ir, paper_ir)
+        if self.verbose:
+            print(f"[green]LLM generated: {len(patent_ir.claims)} claims, "
+                  f"{len(patent_ir.sections)} sections, "
+                  f"{sum(len(s.content) for s in patent_ir.sections)} chars total[/green]")
+        return patent_ir, analysis
 
     # ══════════════════════════════════════════════════════════
     # Paper text builder
@@ -235,26 +241,31 @@ class LLMGenerator:
 
         return patent
 
-    # ══════════════════════════════════════════════════════════
-    # Rules-based fallback
-    # ══════════════════════════════════════════════════════════
-
-    def _fallback_generate(self, paper_ir: PaperIR) -> PatentIR:
-        """Expert rules-based fallback when LLM is unavailable."""
-        from paper2patent.converter.section_mapper import SectionMapper
-        from paper2patent.converter.claims_generator import ClaimsGenerator
-        from paper2patent.analyzer.paper_analyzer import PaperAnalyzer
-
-        # Step 2: Analyze
-        analyzer = PaperAnalyzer(backend=self.backend, verbose=self.verbose)
-        analysis = analyzer.analyze(paper_ir)
-
-        # Step 3: Structure
-        mapper = SectionMapper(patent_type="cn")
-        patent = mapper.map(paper_ir, analysis)
-
-        # Step 4: Claims
-        gen = ClaimsGenerator(patent_type="cn")
-        patent.claims = gen.generate(paper_ir, analysis)
-
-        return patent
+    def _extract_analysis_from_patent(self, patent: PatentIR, paper_ir: PaperIR) -> PaperAnalysis:
+        """Extract PaperAnalysis from LLM-generated PatentIR for diagram generators."""
+        analysis = PaperAnalysis(
+            technical_field="",
+            technical_problem="",
+            is_method_invention=True,
+            is_system_invention=True,
+        )
+        # Extract method steps from claim 1 if it's a method claim
+        if patent.claims and "方法" in patent.claims[0].text[:30]:
+            import re
+            steps = re.findall(r'步骤S?\d+[：:]([^；;。]+)', patent.claims[0].text)
+            for i, step_desc in enumerate(steps):
+                analysis.method_steps.append(MethodStep(
+                    index=i+1, description=step_desc.strip(),
+                    reference_num=110 + i*10,
+                ))
+        # Extract system components from claim 2 if it's a device claim
+        if len(patent.claims) > 1 and "装置" in patent.claims[1].text[:30]:
+            import re
+            comps = re.findall(r'([^，,；;。\n]+)\((\d+)\)[，,]?用于([^；;。\n]+)', patent.claims[1].text)
+            for i, (name, num, func) in enumerate(comps):
+                analysis.system_components.append(SystemComponent(
+                    index=i+1, name=name.strip(),
+                    function=func.strip(),
+                    reference_num=int(num),
+                ))
+        return analysis

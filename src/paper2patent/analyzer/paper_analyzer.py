@@ -16,6 +16,11 @@ ANALYSIS_PROMPT_CN = EXPERT_SYSTEM_PROMPT + """
 
 请仔细分析以下学术论文，提取出可用于撰写中国发明专利的结构化信息。
 
+## ⚠️ 重要
+- 所有技术描述使用中文，**严禁使用"本发明"**，使用"本申请"替代
+- technical_field 格式："本申请涉及...技术领域，具体涉及一种...的方法和装置"
+- 方法步骤描述要详细，每个步骤10-30字中文描述
+
 ## 论文内容
 
 {paper_text}
@@ -26,7 +31,7 @@ ANALYSIS_PROMPT_CN = EXPERT_SYSTEM_PROMPT + """
 
 ```json
 {{
-  "technical_field": "一句话描述本发明所属的技术领域，格式为'本发明涉及...技术领域，具体涉及一种...'",
+  "technical_field": "本申请涉及...技术领域，具体涉及一种...",
   "technical_problem": "论文试图解决的核心技术问题（1-2句话，用中文）",
   "method_steps": [
     {{
@@ -87,18 +92,13 @@ class PaperAnalyzer:
         self.verbose = verbose
 
     def analyze(self, paper_ir: PaperIR) -> PaperAnalysis:
-        """Analyze a PaperIR and return a PaperAnalysis."""
-        # Build the text context
-        paper_text = self._build_context(paper_ir)
+        """Analyze a PaperIR and return a PaperAnalysis.
 
-        # Try LLM-based analysis
-        try:
-            result_json = self._call_llm(paper_text, paper_ir.language)
-            return self._parse_result(result_json)
-        except Exception as e:
-            if self.verbose:
-                print(f"[yellow]LLM analysis failed ({e}), using rules-based fallback[/yellow]")
-            return self._fallback_analyze(paper_ir)
+        Requires LLM (Anthropic/OpenAI API key). No rules fallback.
+        """
+        paper_text = self._build_context(paper_ir)
+        result_json = self._call_llm(paper_text, paper_ir.language)
+        return self._parse_result(result_json)
 
     def _build_context(self, paper_ir: PaperIR) -> str:
         """Build a concise text representation for the LLM prompt."""
@@ -230,46 +230,4 @@ class PaperAnalyzer:
             is_system_invention=result.get("is_system_invention", False),
         )
 
-    # ------------------------------------------------------------------
-    # Rules-based fallback (no LLM)
-    # ------------------------------------------------------------------
-
-    def _fallback_analyze(self, paper_ir: PaperIR) -> PaperAnalysis:
-        """Simple rules-based analysis without LLM."""
-        analysis = PaperAnalysis()
-
-        # Guess technical field from title
-        if paper_ir.title:
-            analysis.technical_field = f"本发明涉及人工智能技术领域，具体涉及一种{paper_ir.title}的方法和装置。"
-
-        # Extract method steps from sections (heuristic)
-        method_section = None
-        for sec in paper_ir.sections:
-            if any(kw in sec.heading.lower() for kw in ("method", "approach", "model", "architecture", "方法", "方案")):
-                method_section = sec
-                break
-
-        if method_section:
-            # Split into sentences and use as rough steps
-            import re
-            sentences = re.split(r'[.。]\s+', method_section.content)
-            for i, sent in enumerate(sentences[:8]):
-                if len(sent.strip()) > 20:
-                    analysis.method_steps.append(MethodStep(
-                        index=i + 1,
-                        description=sent.strip(),
-                        reference_num=110 + i * 10,
-                    ))
-
-        # Guess paper type
-        analysis.is_method_invention = any(
-            kw in paper_ir.title.lower()
-            for kw in ("method", "approach", "方法", "algorithm", "training")
-        ) or bool(analysis.method_steps)
-
-        analysis.is_system_invention = any(
-            kw in paper_ir.title.lower()
-            for kw in ("system", "apparatus", "device", "系统", "装置", "model", "network", "framework")
-        )
-
-        return analysis
+    # All content generation is LLM-driven — no rules-based fallback.
