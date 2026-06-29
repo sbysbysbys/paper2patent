@@ -105,7 +105,7 @@ class PaperToPatentPipeline:
             if self.paper_analysis:
                 self._save_intermediate("paper_analysis.json", self.paper_analysis.model_dump())
             self._save_intermediate("claims.md", self._claims_to_markdown())
-                self._log("[green]✓[/green] Step 2: LLM generated full patent content")
+            self._log("[green]✓[/green] Step 2: LLM generated full patent content")
 
             # Step 5: Extract & process figures
             if self.extract_figures:
